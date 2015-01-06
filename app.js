@@ -7,10 +7,12 @@ var io = require("socket.io")(server);
 
 var dirViews = __dirname + "/public/views";
 
-io.on("connection", function(){
-    console.log("I/O connected...")
+io.on("connection", function(client){
+    console.log("I/O connected...");
+    client.on("message", function(message){
+        console.log("client submitted this message : " + message);
+    });
 });
-
 
 app.get("/", function(req,res){
     res.sendFile(dirViews + "/index.html");
