@@ -19,7 +19,8 @@ $(document).ready () ->
     askForName = () ->
         console.log "asking user for name..."
         nickname = prompt('What\'s your name?')
-        if nickname? or nickname != ""
+        console.log "nickname: #{nickname}"
+        if nickname? and nickname != ""
             return nickname
         else
             askForName()

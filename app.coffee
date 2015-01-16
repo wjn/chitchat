@@ -7,7 +7,7 @@ server = require("http").Server(app)
 io = require("socket.io")(server)
 
 redis = require('redis')
-redisClient = redis.createClient({max_attempts:1})
+redisClient = redis.createClient(6379, '127.0.0.1', {max_attempts:1})
 redis.debug_mode = true;
 
 dirJs = "#{__dirname}/public/js"
@@ -110,19 +110,29 @@ storeChatters = (data) ->
 redisClient.on "error", (err) ->
     console.log err
 
+redisClient.on "connect", () ->
+    console.log "connect"
 
+redisClient.on 'ready', () ->
+    console.log 'ready'
+
+redisClient.on 'reconnecting', () ->
+    console.log 'reconnecting'
+
+redisClient.on 'end', () ->
+    console.log 'end'
 
 
 question1 = "Where is the dog?";
 question2 = "Where is the cat?";
-redisClient.lpush "questions", question1, (err, value) ->
-    console.log value
-redisClient.lpush "questions", question2, (err, reply) ->
+
+redisClient.set "key1", question1
+redisClient.set "key2", question2
+redisClient.get 'key2', (err,reply) ->
     console.log reply
 
-redisClient.get 'questions', (err,reply) ->
+redisClient.lpush "questions", question1
+redisClient.lpush "questions", question2
+
+redisClient.lrange 'questions', 0, -1, (err,reply) ->
     console.log reply
-
-
-
-redisClient.end()
