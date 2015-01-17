@@ -30,47 +30,47 @@ chatters = []
 messages = []
 
 server.listen 8080, ->
-    console.log "Chitchat is running..."
+	console.log "Chitchat is running..."
 
 app.get "/", (req,res) ->
-    res.render "#{dirViews}/index.hbs"
+	res.render "#{dirViews}/index.hbs"
 
 io.on "connection", (client) ->
-    console.log "Client connected..."
+	console.log "Client connected..."
 
-    client.on 'messages', (message) ->
-        console.log data
-        data =
-            nickname: client.nickname
-            message: message
+	client.on 'messages', (message) ->
+		console.log message
+		data =
+			nickname: client.nickname
+			message: message
 
-        client.broadcast.emit 'messages', data
-        client.emit 'messages', data
+		client.broadcast.emit 'messages', data
+		client.emit 'messages', data
 
-        storeMessages data
+		storeMessages data
 
-    client.on 'join', (name) ->
-        client.nickname = name
-        console.log "#{client.nickname} joined the Chitchat"
+	client.on 'join', (name) ->
+		client.nickname = name
+		console.log "#{client.nickname} joined the Chitchat"
 
-        client.broadcast.emit 'chatters',
-            nickname: client.nickname
-            online: true
+		client.broadcast.emit 'chatters',
+			nickname: client.nickname
+			online: true
 
-        storeChatters
-            nickname: client.nickname
-            online: true
+		storeChatters
+			nickname: client.nickname
+			online: true
 
-        # chatters is an array of nicknames
-        chatters.forEach (chatter) ->
-            client.emit 'chatters', chatter
+		# chatters is an array of nicknames
+		chatters.forEach (chatter) ->
+			client.emit 'chatters', chatter
 
 
-        #each message in the messages array consists of an object with the following properties:
-        # nickname: [nickname]
-        # message: [message text]
-        messages.forEach (message) ->
-          client.emit "messages", message
+		#each message in the messages array consists of an object with the following properties:
+		# nickname: [nickname]
+		# message: [message text]
+		messages.forEach (message) ->
+		  client.emit "messages", message
 
 
 
@@ -80,11 +80,11 @@ io.on "connection", (client) ->
 #     alert "Socket.io Error: #{data}"
 #
 io.on 'disconnect', ->
-    console.log 'Socket.io Disconnected.'
+	console.log 'Socket.io Disconnected.'
 
-    storeChatters
-        nickname: client.nickname
-        online: false
+	storeChatters
+		nickname: client.nickname
+		online: false
 
 
 # io.on 'reconnect', ->
@@ -98,17 +98,17 @@ io.on 'disconnect', ->
 # ---------- persistent data ----------------------------
 
 storeMessages = (data) ->
-    messages.push {nickname: data.nickname, message: data.message}
-    if messages.length > 10 then messages.shift()
+	messages.push {nickname: data.nickname, message: data.message}
+	if messages.length > 10 then messages.shift()
 
 storeChatters = (data) ->
-    chatters.push
-        nickname: data.nickname
-        online: data.online
+	chatters.push
+		nickname: data.nickname
+		online: data.online
 
 
 redisClient.on "error", (err) ->
-    console.log err
+	console.log err
 
 
 
@@ -116,12 +116,12 @@ redisClient.on "error", (err) ->
 question1 = "Where is the dog?";
 question2 = "Where is the cat?";
 redisClient.lpush "questions", question1, (err, value) ->
-    console.log value
+	console.log value
 redisClient.lpush "questions", question2, (err, reply) ->
-    console.log reply
+	console.log reply
 
 redisClient.get 'questions', (err,reply) ->
-    console.log reply
+	console.log reply
 
 
 
