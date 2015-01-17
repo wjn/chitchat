@@ -33,7 +33,7 @@ io.on "connection", (client) ->
 	console.log "Client connected..."
 
 	client.on 'messages', (message) ->
-		console.log data
+		console.log message
 		data =
 			nickname: client.nickname
 			message: message
@@ -123,6 +123,10 @@ redisClient.on "error", (err) ->
 redisClient.on "connect", () ->
 	console.log "connect"
 
+question1 = "Where is the dog?";
+question2 = "Where is the cat?";
+redisClient.lpush "questions", question1, (err, value) ->
+	console.log value
 redisClient.on 'ready', () ->
 	console.log 'ready'
 
