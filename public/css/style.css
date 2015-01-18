@@ -21,12 +21,8 @@ body {
     min-width:150px;
     position:relative;
 }
-#wrapper aside #status {
-    position:absolute;
-    bottom:0
-}
 #wrapper ul li.entry,
-#wrapper ul li.chatter {
+#wrapper ul#chatters-list li.chatter {
     list-style:none;
     margin:5px 0;
     border:1px solid #ffffff;
@@ -38,6 +34,8 @@ body {
 }
 #wrapper ul li.chatter {
     padding:0;
+    height:12px;
+    padding-top:1px;
 }
 
 @font-face {
@@ -75,8 +73,9 @@ body {
     border-bottom-left-radius:6px;
     text-align:right;
 }
-#wrapper ul li.chatter .chatter-name {
-
+#wrapper aside #status {
+  position:absolute;
+  bottom:0
 }
 
 #chatters,
@@ -94,6 +93,12 @@ body {
 #chatters {
     min-height:420px;
 }
+
+#status #nickname strong,
+.chatter-name {
+  text-transform:capitalize;
+}
+
 @media (max-width: @screen-xs) {
     h2{font-size: 10px;}
 }

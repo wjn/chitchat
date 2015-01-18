@@ -8,7 +8,7 @@ io = require("socket.io")(server)
 
 redis = require('redis')
 redisClient = redis.createClient(6379, '127.0.0.1', {max_attempts:1})
-redis.debug_mode = true;
+redis.debug_mode = false;
 
 dirJs = "#{__dirname}/public/js"
 dirViews = "#{__dirname}/app/views"
@@ -17,83 +17,73 @@ dirNodeMods = "#{__dirname}/node_modules"
 app.use(express.static(__dirname + '/public'));
 hbs.registerPartials "#{__dirname}/app/views/partials"
 
-# Chatters: an array of objects with two properties:
-# nickname: [nickname]
-# online: [true|false]
-chatters = []
-
 
 server.listen 8080, ->
-	console.log "Chitchat is running..."
+  console.log "Chitchat is running..."
 
 app.get "/", (req,res) ->
-	res.render "#{dirViews}/index.hbs"
+  res.render "#{dirViews}/index.hbs"
 
 io.on "connection", (client) ->
-	console.log "Client connected..."
+  console.log "Client connected..."
 
-	client.on 'messages', (message) ->
-		console.log message
-		data =
-			nickname: client.nickname
-			message: message
+  client.on 'messages', (message) ->
+    console.log message
+    data =
+      nickname: client.nickname
+      message: message
 
-		client.broadcast.emit 'messages', data
-		client.emit 'messages', data
+    client.broadcast.emit 'messages', data
+    client.emit 'messages', data
 
-		storeMessages data
+    storeMessages data
 
-	client.on 'join', (name) ->
-		client.nickname = name
-		redisClient.lpush 'chatters',
-			nickname: name
-			online: true
+  client.on 'join', (name) ->
+    client.nickname = name.toLowerCase()
 
-		console.log "#{client.nickname} joined the Chitchat"
+    if name is 'removeAllChatters'
+      emptyHashTable 'names'
+      client.emit 'askForName'
+      return
 
-		client.broadcast.emit 'chatters',
-			nickname: client.nickname
-			online: true
+    console.log "#{client.nickname} joined the Chitchat"
+    storeChatters
+      nickname: client.nickname
+      online: true
 
-		storeChatters
-			nickname: client.nickname
-			online: true
-
-
-		redisClient.smembers "chatters", (err, chatters) ->
-			# chatters is an array of nicknames
-			chatters.forEach (chatter) ->
-				chatter = JSON.parse chatter
-				client.emit 'chatters', chatter
-
-
-		#each message in the messages array consists of an object with the following properties:
-		# nickname: [nickname]
-		# message: [message text]
-		redisClient.lrange "messages", 0, -1, (err,messages) ->
-			messages = messages.reverse()
-			messages.forEach (message) ->
-				message = JSON.parse message
-				client.emit "messages", message
+    console.log "Chatters stored..."
+    redisClient.hkeys "names", (err, names) ->
+      # chatters is an array of nicknames
+      names.forEach (name) ->
+        isOnline = redisClient.hget "names", name
+        client.emit 'chatters',
+          nickname: name
+          online: isOnline
 
 
+    #each message in the messages array consists of an object with the following properties:
+    # nickname: [nickname]
+    # message: [message text]
+    redisClient.lrange "messages", 0, -1, (err,messages) ->
+      console.log "retrieving messages " + messages.toString();
+      messages = messages.reverse()
+      messages.forEach (message) ->
+        console.log "message sent to client: #{message}"
+        message = JSON.parse message
+        client.emit "messages", message
 
-#
-# io.on 'error', (data) ->
-#     console.log "Socket.io Error: #{data}"
-#     alert "Socket.io Error: #{data}"
-#
+io.on 'error', (data) ->
+    console.log "Socket.io Error: #{data}"
+    client.emit 'socketError'
+
 io.on 'disconnect', ->
-	console.log 'Socket.io Disconnected.'
+  console.log 'Socket.io Disconnected.'
 
-	storeChatters
-		nickname: client.nickname
-		online: false
+  storeChatters
+    nickname: client.nickname
+    online: false
 
 
-# io.on 'reconnect', ->
-#     console.log "Socket.io Reconnected."
-#
 # ----------- Routes ------------------------------------
 # app.get "/dashboard", (req,res) ->
 #     res.sendFile "#{dirViews}/dashboard.html"
@@ -106,47 +96,50 @@ io.on 'disconnect', ->
 #   message: [message value]
 #}
 storeMessages = (data) ->
-	entry = JSON.stringify {nickname: data.nickname, message: data.message}
-	redisClient.lpush "messages", entry, (err, reply) ->
-		redisClient.ltrim "messages", 0, 9
+  console.log "storeMessages function called --->"
+  console.log "\tredisClient.lpush \"messages\"  JSON.stringify {nickname: #{data.nickname}, message: #{data.message}},..."
+  redisClient.lpush "messages", JSON.stringify {nickname: data.nickname, message: data.message}, (err, reply) ->
+    redisClient.ltrim "messages", 0, 9
 
+# Chatters: an array of objects with two properties:
+# nickname: [nickname]
+# online: [true|false]
 storeChatters = (data) ->
-	chatters =
-		nickname: data.nickname
-		online: data.online
-	redisClient.sadd "chatters", JSON.stringify(chatters)
+  nickname = data.nickname || null
+  isOnline = data.online || false
+  console.log "Nickname: #{nickname}, isOnline: #{isOnline}"
+  console.log "storeChatters function called --->"
+  console.log "\tredisClient.hset \"chatters\", #{data.nickname}, #{data.online}\n"
+  redisClient.hset "names", data.nickname.toLowerCase(), data.online, (err,reply) ->
+    if err then console.dir "storeChatters ERROR: #{err}"
+    if reply then console.dir "storeChatters REPLY: #{reply}"
+
+removeChatter = (tableName = 'names', name) ->
+  redisClient.hdel tableName, name, (err,reply) ->
+    if err then console.log "removeChatter ERROR: #{err}"
+    if reply == 1 then console.log "#{name} was removed from the #{tableName} hash table."
+    else console.log "#{name} was not found in the #{tableName} hash table."
+
+
+emptyHashTable = (tableName) ->
+  redisClient.hkeys tableName, (err, keys) ->
+    keys.forEach (key) ->
+      redisClient.hdel tableName, key, (err,reply) ->
+        if err then console.log "There was an error emptyin the #{tableName} hash table: #{err}"
+        if reply then console.log "#{tableName} was successfully emptied. REPLY: #{reply}"
 
 
 redisClient.on "error", (err) ->
-	console.log err
+  console.log err
 
 redisClient.on "connect", () ->
-	console.log "connect"
+  console.log "redis connect ..."
 
-question1 = "Where is the dog?";
-question2 = "Where is the cat?";
-redisClient.lpush "questions", question1, (err, value) ->
-	console.log value
 redisClient.on 'ready', () ->
-	console.log 'ready'
+  console.log 'redis ready ...'
 
 redisClient.on 'reconnecting', () ->
-	console.log 'reconnecting'
+  console.log 'redis reconnecting ...'
 
 redisClient.on 'end', () ->
-	console.log 'end'
-
-
-# question1 = "Where is the dog?";
-# question2 = "Where is the cat?";
-#
-# redisClient.set "key1", question1
-# redisClient.set "key2", question2
-# redisClient.get 'key2', (err,reply) ->
-#     console.log reply
-#
-# redisClient.lpush "questions", question1
-# redisClient.lpush "questions", question2
-#
-# redisClient.lrange 'questions', 0, -1, (err,reply) ->
-#     console.log reply
+  console.log 'redis end ...'
